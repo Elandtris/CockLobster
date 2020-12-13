@@ -1,5 +1,4 @@
 import pygame
-import neat
 import time
 import os
 import random
@@ -7,10 +6,13 @@ import random
 WIN_WIDTH = 500
 WIN_HEIGHT = 800
 
-BIRD_IMGS = [pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "bird1.png"))), pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "bird2.png"))), pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "bird3.png")))]
+WIN = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT))
+pygame.display.set_caption("Cock Lobster")
+
+BIRD_IMGS = [pygame.transform.scale2x(pygame.image.load(os.path.join("imgs","bird" + str(x) + ".png"))) for x in range(1,4)]
 PIPE_IMG = [pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "pipe.png")))]
 BASE_IMG = [pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "base.png")))]
-BG_IMG = [pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "bg.png")))]
+BG_IMG = pygame.transform.scale(pygame.image.load(os.path.join("imgs","bg.png")).convert_alpha(), (600, 900))
 
 class Bird:
 	IMGS = BIRD_IMGS
@@ -47,7 +49,7 @@ class Bird:
 		self.y = self.y + d
 
 		if d < 0  or self.y < self.height + 50:
-			if self.tilt < self.MAX_ROTATION
+			if self.tilt < self.MAX_ROTATION:
 				self.tilt = self.MAX_ROTATION
 
 		else:
@@ -58,7 +60,7 @@ class Bird:
 	def draw(self, win):
 		self.img_count += 1
 
-		if self.img_count < self.ANIMATION_TIME
+		if self.img_count < self.ANIMATION_TIME:
 			self.img = self.IMGS[0]
 		elif self.img_count < self.ANIMATION_TIME*2:
 			self.img = self.IMGS[1]
@@ -74,11 +76,6 @@ class Bird:
 			self.img = self.IMGS[1]
 			self.img_count = self.ANIMATION_TIME*2
 
-		rotated_image = pygame.transform.rotate(self.img, self.tilt)
-		new_rect = rotated_image.get_rect(center=self.img.get_rect(topleft = (self.x, self.y)).center)
-		win.blit(rotated_image, new_rect,topleft)
-
-
 	def get_mask(self):
 		return pygame.mask.from_surface(self.img)
 
@@ -91,18 +88,16 @@ def draw_window(win, bird):
 
 def main():
 	bird = Bird(200, 200)
-	win = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT))
 
 	run = True
 	while run:
 		for event in pygame.event.get():
 			if event.type == pygame.QUIT:
 				run = False
+				pygame.quit()
+				quit()
 
-		draw_window(win, bird)
-				
-	pygame.quit()
-	quit()
+		draw_window(WIN, bird)
+		
 
 main()
-
