@@ -3,16 +3,22 @@ import time
 import os
 import random
 
+pygame.font.init()
+
 WIN_WIDTH = 500
 WIN_HEIGHT = 800
+FLOOR = 730
+COCKLOBX = 80
+COCKLOBY = 60
+STAT_FONT = pygame.font.SysFont("comicsans", 100)
 
 mouse_pressed = False
 
 WIN = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT))
 pygame.display.set_caption("Cock Lobster")
 
-BIRD_IMGS = [pygame.transform.scale2x(pygame.image.load(os.path.join("imgs","bird" + str(x) + ".png"))) for x in range(1,4)]
-#BIRD_IMGS = [pygame.transform.scale(pygame.image.load(os.path.join("imgs","cocklob1.png")), (200, 200)), pygame.transform.scale(pygame.image.load(os.path.join("imgs","cocklob2.png")), (200, 200)), pygame.transform.scale(pygame.image.load(os.path.join("imgs","cocklob3.png")), (200, 200))]
+#BIRD_IMGS = [pygame.transform.scale2x(pygame.image.load(os.path.join("imgs","bird" + str(x) + ".png"))) for x in range(1,4)]
+BIRD_IMGS = [pygame.transform.scale(pygame.image.load(os.path.join("imgs","cocklob1.png")), (COCKLOBX, COCKLOBY)), pygame.transform.scale(pygame.image.load(os.path.join("imgs","cocklob2.png")), (COCKLOBX, COCKLOBY)), pygame.transform.scale(pygame.image.load(os.path.join("imgs","cocklob3.png")), (COCKLOBX, COCKLOBY))]
 PIPE_IMG = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "pipe.png")))
 BASE_IMG = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "base.png")))
 BG_IMG = pygame.transform.scale(pygame.image.load(os.path.join("imgs","bg.png")).convert_alpha(), (600, 900))
@@ -20,8 +26,8 @@ BG_IMG = pygame.transform.scale(pygame.image.load(os.path.join("imgs","bg.png"))
 class Bird:
 	IMGS = BIRD_IMGS
 	MAX_ROTATION = 25
-	ROT_VOL = 20
-	ANIMATION_TIME = 5
+	ROT_VOL = 0.125
+	ANIMATION_TIME = 100
 
 	def __init__(self, x, y):
 		self.x = x
@@ -34,7 +40,7 @@ class Bird:
 		self.img = self.IMGS[0]
 
 	def jump(self):
-		self.vel = -0.1
+		self.vel = -0.06
 		self.tick_count = 0
 		self.height = self.y
 
@@ -51,7 +57,7 @@ class Bird:
 
 		self.y = self.y + d
 
-		if d < 0  or self.y < self.height + 50:
+		if d < 0  or self.y < self.height + 2:
 			if self.tilt < self.MAX_ROTATION:
 				self.tilt = self.MAX_ROTATION
 
@@ -90,15 +96,98 @@ class Bird:
 	def get_mask(self):
 		return pygame.mask.from_surface(self.img)
 
+class Pipe():
+    GAP = 200
+    VEL = 0.15
+
+    def __init__(self, x):
+        self.x = x
+        self.height = 0
+
+        # where the top and bottom of the pipe is
+        self.top = 0
+        self.bottom = 0
+
+        self.PIPE_TOP = pygame.transform.flip(PIPE_IMG, False, True)
+        self.PIPE_BOTTOM = PIPE_IMG
+
+        self.passed = False
+
+        self.set_height()
+
+    def set_height(self):
+        self.height = random.randrange(50, 450)
+        self.top = self.height - self.PIPE_TOP.get_height()
+        self.bottom = self.height + self.GAP
+
+    def move(self):
+        self.x -= self.VEL
+
+    def draw(self, win):
+        # draw top
+        win.blit(self.PIPE_TOP, (self.x, self.top))
+        # draw bottom
+        win.blit(self.PIPE_BOTTOM, (self.x, self.bottom))
+		
+    def collide(self, bird, win):
+        bird_mask = bird.get_mask()
+        top_mask = pygame.mask.from_surface(self.PIPE_TOP)
+        bottom_mask = pygame.mask.from_surface(self.PIPE_BOTTOM)
+        top_offset = (round(self.x) - bird.x, self.top - round(bird.y))
+        bottom_offset = (round(self.x) - bird.x, self.bottom - round(bird.y))
+
+        b_point = bird_mask.overlap(bottom_mask, bottom_offset)
+        t_point = bird_mask.overlap(top_mask,top_offset)
+
+        if b_point or t_point:
+            return True
+
+        return False
+
+class Base:
+    VEL = 0.15
+    WIDTH = BASE_IMG.get_width()
+    IMG = BASE_IMG
+
+    def __init__(self, y):
+        self.y = y
+        self.x1 = 0
+        self.x2 = self.WIDTH
+
+    def move(self):
+        self.x1 -= self.VEL
+        self.x2 -= self.VEL
+        if self.x1 + self.WIDTH < 0:
+            self.x1 = self.x2 + self.WIDTH
+
+        if self.x2 + self.WIDTH < 0:
+            self.x2 = self.x1 + self.WIDTH
+
+    def draw(self, win):
+        win.blit(self.IMG, (self.x1, self.y))
+        win.blit(self.IMG, (self.x2, self.y))
+
 def blitRotateCenter(surf, image, topleft, angle):
     rotated_image = pygame.transform.rotate(image, angle)
     new_rect = rotated_image.get_rect(center = image.get_rect(topleft = topleft).center)
 
     surf.blit(rotated_image, new_rect.topleft)
 
-def draw_window(win, bird):
+def draw_window(win, bird, pipes, base, score, gameFailed):
 	win.blit(BG_IMG, (0,0))
-	bird.draw(win)
+
+	if not gameFailed:
+		for pipe in pipes:
+			pipe.draw(win)
+		bird.draw(win)
+		base.draw(win)
+		score_label = STAT_FONT.render(str(score),1,(255,255,255))
+		win.blit(score_label, (WIN_WIDTH - score_label.get_width() - 15, 10))
+	else:
+		lose = STAT_FONT.render("fucking loser",1,(255,255,255))
+		rect = lose.get_rect(center=(WIN_WIDTH / 2, WIN_HEIGHT / 2))
+		win.blit(lose, rect)
+
 	pygame.display.update()
 
 def mouse_clicked(event):
@@ -115,7 +204,13 @@ def mouse_clicked(event):
 
 def main():
 	bird = Bird(200, 200)
-
+	pipes = [Pipe(700)]
+	base = Base(FLOOR)
+	gameFailed = False
+	global WIN
+	win = WIN
+	rem = []
+	score = 0
 	run = True
 	while run:
 		for event in pygame.event.get():
@@ -124,13 +219,32 @@ def main():
 				pygame.quit()
 				quit()
 
+		add_pipe = False
+		for pipe in pipes:
+			pipe.move()
+
+			if pipe.x <= 278 and pipe.x >= 100 and pipe.collide(bird, win):
+				gameFailed = True
+			
+			if pipe.x + pipe.PIPE_TOP.get_width() < 0:
+				rem.append(pipe)
+
+			if not pipe.passed and pipe.x < bird.x:
+				pipe.passed = True
+				add_pipe = True
+		
+		if add_pipe:
+			score += 1
+			pipes.append(Pipe(WIN_WIDTH))
+		
+		base.move()
 		bird.move()
 
 		if mouse_clicked(pygame.mouse.get_pressed()):
 			print('mf jump')
 			bird.jump()
 
-		draw_window(WIN, bird)
+		draw_window(win, bird, pipes, base, score, gameFailed)
 		
 
 main()
